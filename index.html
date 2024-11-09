@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body>
+    <div id="app">
+
+    </div>
+    <script>
+        "use strict";
+
+        function fetchAPI() {
+            const json = ({
+                paragraph: `
+                <div class='p-2'>
+                    The sky is [_input] and the grass is [_input]. You should drag the word <span style='color: red;'>green</span> to the correct blank. 
+                    <table class="border-collapse border border-slate-400 mt-10">
+                        <tr class="border border-black">
+                            <th class='border border-solid border-slate-600 p-2'>[_input]</th>
+                            <th class='border border-solid border-slate-600 p-2'>Contact</th>
+                            <th class='border border-solid border-slate-600 p-2'>Country</th>
+                        </tr>
+                    </table>
+                </div>
+                `,
+                blanks: [{
+                    id: 1,
+                    position: "first",
+                    correctAnswer: "blue",
+                    type: "input",
+                }, {
+                    id: 2,
+                    position: "second",
+                    correctAnswer: "green",
+                    type: "drag",
+                }, {
+                    id: 3,
+                    position: "3rd",
+                    correctAnswer: "red",
+                    type: "drag",
+                },],
+                dragWords: [{
+                    word: "blue",
+                    color: "default",
+                    id: 1,
+                }, {
+                    word: "green",
+                    color: "red",
+                    id: 2,
+                }, {
+                    word: "yellow",
+                    color: "default",
+                    id: 3,
+                }, {
+                    word: "red",
+                    color: "default",
+                    id: 4,
+                }, {
+                    word: "black",
+                    color: "black",
+                    id: 5,
+                },],
+            });
+
+            return new Promise((resolve) => {
+                resolve(json);
+            })
+        }
+
+        fetchAPI()
+            .then((val) => {
+                const title = document.createElement("h2");
+                title.classList.add("text-lg", "font-bold");
+                title.innerHTML = "Complete the paragraph with words in the box";
+                
+                const boxOfWords = document.createElement("div");
+                boxOfWords.classList.add(...("border p-4 mx-auto inline-flex gap-2 align-center flex-wrap".split(" ")));
+                for (const word of val.dragWords) {
+                    const wordSpan = document.createElement("span");
+                    wordSpan.innerHTML = word.word;
+                    const tempClassLists = (`px-2 ${(word.color != "default") ? ("text-" + word.color + "-500") : ""}`.split(" "));
+                    if (tempClassLists[tempClassLists.length - 1] === "") tempClassLists.pop();
+                    console.log(tempClassLists)
+                    wordSpan.classList.add(...tempClassLists);
+                    boxOfWords.append(wordSpan);
+                }
+                
+                const app = document.getElementById("app");
+                app.append(title, boxOfWords);
+
+                return val;
+            })
+            .then((val) => {
+                const inputStr = "[_input]";
+                const app = document.getElementById("app");
+                const splits = val.paragraph.split(inputStr);
+                const tempArr = [splits[0]];
+
+                // let pos = -1;
+                // // while ((pos = val.paragraph.indexOf(inputStr, pos + 1)) != -1) {
+                // //     const a = document.createElement("input");
+                // //     a.style.width = "100%";
+                // //     a.placeholder = "Type or drag from answer box here.";
+
+                // //     val.paragraph.replace(inputStr, a.outerHTML);
+                // // }
+
+                // const formatted = val.paragraph.slice().replaceAll(inputStr, () => {
+                //     const a = document.createElement("input");
+                //     a.style.width = "100%";
+                //     a.placeholder = "Type or drag from answer box here.";
+                //     return a.outerHTML;
+                // });
+
+                // app.innerHTML = val.paragraph;
+
+                for (let i = 1; i < splits.length; i++) {
+                    const input = document.createElement("input");
+                    input.style.minWidth = "0%";
+                    input.classList.toggle("w-16", "mx-2");
+                    input.placeholder = "Type or drag from answer box here.";
+
+                    tempArr.push(input.outerHTML);
+                    tempArr.push(splits[i]);
+                }
+
+                app.innerHTML += tempArr.join("");
+
+                console.log(val.paragraph);
+            })
+    </script>
+</body>
+<style>
+    #app {
+        margin: 1em;
+    }
+</style>
+</html>
