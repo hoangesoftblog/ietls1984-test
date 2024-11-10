@@ -78,19 +78,18 @@
                 const title = document.createElement("h2");
                 title.classList.add("text-lg", "font-bold");
                 title.innerHTML = "Complete the paragraph with words in the box";
-                
+
                 const boxOfWords = document.createElement("div");
                 boxOfWords.classList.add(...("border p-4 mx-auto inline-flex gap-2 align-center flex-wrap".split(" ")));
                 for (const word of val.dragWords) {
                     const wordSpan = document.createElement("span");
                     wordSpan.innerHTML = word.word;
-                    const tempClassLists = (`px-2 ${(word.color != "default") ? ("text-" + word.color + "-500") : ""}`.split(" "));
+                    const tempClassLists = (`drag-answer px-3 py-1 border-2 ${(word.color != "default") ? ("text-" + word.color + "-500") : ""}`.split(" "));
                     if (tempClassLists[tempClassLists.length - 1] === "") tempClassLists.pop();
-                    console.log(tempClassLists)
                     wordSpan.classList.add(...tempClassLists);
                     boxOfWords.append(wordSpan);
                 }
-                
+
                 const app = document.getElementById("app");
                 app.append(title, boxOfWords);
 
@@ -102,37 +101,80 @@
                 const splits = val.paragraph.split(inputStr);
                 const tempArr = [splits[0]];
 
-                // let pos = -1;
-                // // while ((pos = val.paragraph.indexOf(inputStr, pos + 1)) != -1) {
-                // //     const a = document.createElement("input");
-                // //     a.style.width = "100%";
-                // //     a.placeholder = "Type or drag from answer box here.";
-
-                // //     val.paragraph.replace(inputStr, a.outerHTML);
-                // // }
-
-                // const formatted = val.paragraph.slice().replaceAll(inputStr, () => {
-                //     const a = document.createElement("input");
-                //     a.style.width = "100%";
-                //     a.placeholder = "Type or drag from answer box here.";
-                //     return a.outerHTML;
-                // });
-
-                // app.innerHTML = val.paragraph;
-
+                const paragraphSection = document.createElement("div");
                 for (let i = 1; i < splits.length; i++) {
                     const input = document.createElement("input");
+                    input.style.display = "inline-block";
                     input.style.minWidth = "0%";
-                    input.classList.toggle("w-16", "mx-2");
+                    input.classList.add("w-32", "p-2", "mx-2", "text-lg", "border", "border-solid", "drop-answer");
                     input.placeholder = "Type or drag from answer box here.";
-
                     tempArr.push(input.outerHTML);
                     tempArr.push(splits[i]);
                 }
 
-                app.innerHTML += tempArr.join("");
+                paragraphSection.innerHTML = tempArr.join("");
 
-                console.log(val.paragraph);
+                const resultDiv = document.createElement("div");
+                resultDiv.id = "result";
+                resultDiv.classList.add("text-lg", "font-bold")
+
+                const submitButton = document.createElement("button");
+                submitButton.id = "submit-button"
+                submitButton.type = "button";
+                submitButton.innerHTML = "Check";
+                submitButton.classList.add("p-2", "bg-slate-400", "text-white");
+                submitButton.addEventListener("click", (e) => {
+                    const result = document.getElementById("result");
+                    result.innerHTML = "";            
+                    let output = false;
+                    for (const [index, input] of Object.entries(document.getElementsByClassName("drop-answer"))) {
+                        const compareResult = (input.value.toLowerCase() == String(val.blanks[index].correctAnswer).toLowerCase());
+                        console.log((input.value.toLowerCase(), String(val.blanks[index].correctAnswer).toLowerCase()));
+                        output &&= compareResult;
+
+                        if (compareResult) {
+                            input.classList.add("text-green-300");
+                        }
+                        else {
+                            input.classList.add("text-red-300");
+                        }
+                    };
+                    setTimeout(() => {
+                        result.innerHTML = output ? "Correct" : "Incorrect"
+                    }, 1000);   
+                });
+
+                app.append(paragraphSection, resultDiv, submitButton);
+                return val;
+            })
+            .then((val) => {
+                for (const wordSpan of document.getElementsByClassName("drag-answer")) {
+                    wordSpan.draggable = true;
+                    wordSpan.addEventListener("dragstart", (e) => {
+                        // e.preventDefault();
+                        console.log("Drag start");
+                        e.dataTransfer.dropEffect = "move";
+                        e.dataTransfer.setData("value", e.target.textContent);
+                        const element = e.target;
+                    });
+                }
+
+                for (const input of document.getElementsByClassName("drop-answer")) {
+                    input.addEventListener("drop", (e) => {
+                        e.preventDefault();
+                        console.log("Drop into: ", e.target);
+                        e.dataTransfer.dropEffect = "move"; 
+                        const value = e.dataTransfer.getData("value");
+                        e.target.value = value;
+                    });
+                    input.addEventListener("dragover", (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        console.log("Drag over");
+                    });
+                }
+
+                return val;
             })
     </script>
 </body>
