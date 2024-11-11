@@ -73,65 +73,133 @@
             })
         }
 
+        let usedWordIds = new Set();
+        let remainedWordIds = new Set();
+        
+        function renderWordSpan(word) {
+            const wordSpan = document.createElement("span");
+            wordSpan.innerHTML = word.word;
+            wordSpan.setAttribute("data-index", word.id);
+            const tempClassLists = (`drag-answer px-3 py-1 border-2 ${(word.color != "default") ? ("text-" + word.color + "-500") : ""}`.split(" "));
+            if (tempClassLists[tempClassLists.length - 1] === "") tempClassLists.pop();
+            wordSpan.classList.add(...tempClassLists);
+            wordSpan.draggable = true;
+            wordSpan.addEventListener("dragstart", (e) => {
+                // e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                e.dataTransfer.setData("value", e.target.getAttribute("data-index"));   
+            });
+            return wordSpan;
+        }
+
+        function renderBoxOfWords(words) {
+            const boxOfWords = document.getElementById("boxOfWords");
+            boxOfWords.innerHTML = "";
+
+            for (const word of words) {
+                const wordSpan = renderWordSpan(word);
+                boxOfWords.append(wordSpan);
+            }
+        };
+
         fetchAPI()
-            .then((val) => {
+            .then((json) => {
                 const title = document.createElement("h2");
                 title.classList.add("text-lg", "font-bold");
                 title.innerHTML = "Complete the paragraph with words in the box";
 
                 const boxOfWords = document.createElement("div");
+                boxOfWords.id = "boxOfWords";
                 boxOfWords.classList.add(...("border p-4 mx-auto inline-flex gap-2 align-center flex-wrap".split(" ")));
-                for (const word of val.dragWords) {
-                    const wordSpan = document.createElement("span");
-                    wordSpan.innerHTML = word.word;
-                    const tempClassLists = (`drag-answer px-3 py-1 border-2 ${(word.color != "default") ? ("text-" + word.color + "-500") : ""}`.split(" "));
-                    if (tempClassLists[tempClassLists.length - 1] === "") tempClassLists.pop();
-                    wordSpan.classList.add(...tempClassLists);
+                for (const word of json.dragWords) {
+                    const wordSpan = renderWordSpan(word);
                     boxOfWords.append(wordSpan);
                 }
 
                 const app = document.getElementById("app");
                 app.append(title, boxOfWords);
 
-                return val;
+                return json;
             })
-            .then((val) => {
+            .then((json) => {
                 const inputStr = "[_input]";
-                const app = document.getElementById("app");
-                const splits = val.paragraph.split(inputStr);
+                const splits = json.paragraph.split(inputStr);
                 const tempArr = [splits[0]];
-
+                
                 const paragraphSection = document.createElement("div");
                 for (let i = 1; i < splits.length; i++) {
                     const input = document.createElement("input");
                     input.style.display = "inline-block";
-                    input.style.minWidth = "0%";
-                    input.classList.add("w-32", "p-2", "mx-2", "text-lg", "border", "border-solid", "drop-answer");
+                    input.style.minWidth = "128px";
+                    input.classList.add("w-auto", "p-2", "mx-2", "text-lg", "border", "border-solid", "drop-answer");
                     input.placeholder = "Type or drag from answer box here.";
                     tempArr.push(input.outerHTML);
                     tempArr.push(splits[i]);
                 }
-
                 paragraphSection.innerHTML = tempArr.join("");
-
-                const resultDiv = document.createElement("div");
-                resultDiv.id = "result";
-                resultDiv.classList.add("text-lg", "font-bold")
-
+                
                 const submitButton = document.createElement("button");
                 submitButton.id = "submit-button"
                 submitButton.type = "button";
                 submitButton.innerHTML = "Check";
                 submitButton.classList.add("p-2", "bg-slate-400", "text-white");
-                submitButton.addEventListener("click", (e) => {
-                    const result = document.getElementById("result");
-                    result.innerHTML = "";            
-                    let output = false;
-                    for (const [index, input] of Object.entries(document.getElementsByClassName("drop-answer"))) {
-                        const compareResult = (input.value.toLowerCase() == String(val.blanks[index].correctAnswer).toLowerCase());
-                        console.log((input.value.toLowerCase(), String(val.blanks[index].correctAnswer).toLowerCase()));
-                        output &&= compareResult;
+                
+                const resetButton = document.createElement("button");
+                resetButton.id = "reset-button"
+                resetButton.type = "button";
+                resetButton.innerHTML = "Reset";
+                resetButton.classList.add("p-2", "ml-4", "bg-gray-400", "text-white");
+                
+                const buttonDiv = document.createElement("div");
+                buttonDiv.append(submitButton, resetButton);
+                const app = document.getElementById("app");
+                app.append(paragraphSection, buttonDiv);
+                
+                return json;
+            })
+            .then((json) => {
+                for (const input of document.getElementsByClassName("drop-answer")) {
+                    input.addEventListener("drop", (e) => {
+                        e.preventDefault();
+                        e.target.classList.remove("bg-green-300");
+                        e.dataTransfer.dropEffect = "move"; 
+                        const value = e.dataTransfer.getData("value");
+                        const draggedIndex = +value;
+                        usedWordIds.add(draggedIndex);
+  
+                        if (e.target.value)  {
+                            const txt = e.target.value;
+                            const id = json.dragWords.find((dragWord) => dragWord.word === txt).id;
+                            if (id != -1) {
+                                usedWordIds.delete(id);
+                            }
+                        }
+                        
+                        const foundedDragWord = json.dragWords.find((dragWord) => dragWord.id == draggedIndex);
+                        e.target.value = foundedDragWord.word;
+                        const tempBoxOfWords = json.dragWords.filter((dragWord) => !usedWordIds.has(dragWord.id));
+                        renderBoxOfWords(tempBoxOfWords);
+                    });
+                    input.addEventListener("dragover", (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        e.target.classList.add("bg-green-300");
+                    });
+                    input.addEventListener("dragleave", (e) => {
+                        e.preventDefault();
+                        console.log("Drag leave");
+                        e.target.classList.remove("bg-green-300");
+                    })
+                }
 
+                const submitButton = document.getElementById("submit-button");
+                submitButton.addEventListener("click", (e) => {
+                    let output = true;
+                    for (const [index, input] of Object.entries(document.getElementsByClassName("drop-answer"))) {
+                        input.classList.remove("text-green-300", "text-red-300");
+                        const compareResult = (input.value.toLowerCase() == String(json.blanks[index].correctAnswer).toLowerCase());
+                        output &&= compareResult;
+                        
                         if (compareResult) {
                             input.classList.add("text-green-300");
                         }
@@ -140,41 +208,20 @@
                         }
                     };
                     setTimeout(() => {
-                        result.innerHTML = output ? "Correct" : "Incorrect"
-                    }, 1000);   
+                        alert(output ? "Correct" : "Incorrect");
+                    }, 500);
                 });
 
-                app.append(paragraphSection, resultDiv, submitButton);
-                return val;
-            })
-            .then((val) => {
-                for (const wordSpan of document.getElementsByClassName("drag-answer")) {
-                    wordSpan.draggable = true;
-                    wordSpan.addEventListener("dragstart", (e) => {
-                        // e.preventDefault();
-                        console.log("Drag start");
-                        e.dataTransfer.dropEffect = "move";
-                        e.dataTransfer.setData("value", e.target.textContent);
-                        const element = e.target;
-                    });
-                }
+                const resetButton = document.getElementById("reset-button");
+                resetButton.addEventListener("click", (e) => {
+                    renderBoxOfWords(json.dragWords);
+                    for (const [index, input] of Object.entries(document.getElementsByClassName("drop-answer"))) {
+                        input.classList.remove("text-green-300", "text-red-300");
+                        input.value = "";
+                    };
+                });
 
-                for (const input of document.getElementsByClassName("drop-answer")) {
-                    input.addEventListener("drop", (e) => {
-                        e.preventDefault();
-                        console.log("Drop into: ", e.target);
-                        e.dataTransfer.dropEffect = "move"; 
-                        const value = e.dataTransfer.getData("value");
-                        e.target.value = value;
-                    });
-                    input.addEventListener("dragover", (e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                        console.log("Drag over");
-                    });
-                }
-
-                return val;
+                return json;
             })
     </script>
 </body>
