@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body>
@@ -75,6 +74,7 @@
 
         let usedWordIds = new Set();
         let remainedWordIds = new Set();
+        const renderedWordSpans = {};
         
         function renderWordSpan(word) {
             const wordSpan = document.createElement("span");
@@ -110,18 +110,14 @@
 
                 const boxOfWords = document.createElement("div");
                 boxOfWords.id = "boxOfWords";
+                // boxOfWords.style.transition = "width 1s";
                 boxOfWords.classList.add(...("border p-4 mx-auto inline-flex gap-2 align-center flex-wrap".split(" ")));
                 for (const word of json.dragWords) {
                     const wordSpan = renderWordSpan(word);
                     boxOfWords.append(wordSpan);
+                    renderedWordSpans[word.id] = wordSpan;
                 }
 
-                const app = document.getElementById("app");
-                app.append(title, boxOfWords);
-
-                return json;
-            })
-            .then((json) => {
                 const inputStr = "[_input]";
                 const splits = json.paragraph.split(inputStr);
                 const tempArr = [splits[0]];
@@ -142,31 +138,35 @@
                 submitButton.id = "submit-button"
                 submitButton.type = "button";
                 submitButton.innerHTML = "Check";
-                submitButton.classList.add("p-2", "bg-slate-400", "text-white");
+                submitButton.classList.add("p-2", "bg-red-600", "text-white");
                 
                 const resetButton = document.createElement("button");
                 resetButton.id = "reset-button"
                 resetButton.type = "button";
                 resetButton.innerHTML = "Reset";
-                resetButton.classList.add("p-2", "ml-4", "bg-gray-400", "text-white");
+                resetButton.classList.add("p-2", "ml-4", "bg-gray-500", "text-white");
                 
                 const buttonDiv = document.createElement("div");
                 buttonDiv.append(submitButton, resetButton);
+
                 const app = document.getElementById("app");
-                app.append(paragraphSection, buttonDiv);
+                app.append(title, boxOfWords, paragraphSection, buttonDiv);
                 
                 return json;
             })
             .then((json) => {
-                for (const input of document.getElementsByClassName("drop-answer")) {
-                    input.addEventListener("drop", (e) => {
+                for (const [blankIndex, blankInput] of Object.entries(document.getElementsByClassName("drop-answer"))) {
+                    blankInput.addEventListener("drop", (e) => {
                         e.preventDefault();
                         e.target.classList.remove("bg-green-300");
                         e.dataTransfer.dropEffect = "move"; 
-                        const value = e.dataTransfer.getData("value");
-                        const draggedIndex = +value;
-                        usedWordIds.add(draggedIndex);
-  
+                        const wordId = e.dataTransfer.getData("value");
+                        const draggedIndex = +wordId;
+
+                        if (e.target.value.toLowerCase() == json.blanks[blankIndex].correctAnswer.toLowerCase()) {
+                            return;
+                        }
+                        
                         if (e.target.value)  {
                             const txt = e.target.value;
                             const id = json.dragWords.find((dragWord) => dragWord.word === txt).id;
@@ -174,18 +174,20 @@
                                 usedWordIds.delete(id);
                             }
                         }
+
+                        usedWordIds.add(draggedIndex);
                         
                         const foundedDragWord = json.dragWords.find((dragWord) => dragWord.id == draggedIndex);
                         e.target.value = foundedDragWord.word;
                         const tempBoxOfWords = json.dragWords.filter((dragWord) => !usedWordIds.has(dragWord.id));
                         renderBoxOfWords(tempBoxOfWords);
                     });
-                    input.addEventListener("dragover", (e) => {
+                    blankInput.addEventListener("dragover", (e) => {
                         e.preventDefault();
                         e.dataTransfer.dropEffect = "move";
                         e.target.classList.add("bg-green-300");
                     });
-                    input.addEventListener("dragleave", (e) => {
+                    blankInput.addEventListener("dragleave", (e) => {
                         e.preventDefault();
                         console.log("Drag leave");
                         e.target.classList.remove("bg-green-300");
@@ -225,6 +227,7 @@
             })
     </script>
 </body>
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
     #app {
         margin: 1em;
